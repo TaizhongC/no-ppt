@@ -41,7 +41,7 @@ The app accent is defined in **public/no-ppt.config**. Set `accent = #000000` fo
 - Resize handles stay accessible past the slide edge. Scroll the workspace to reach them, or use **Fit slide to canvas** to restore the centered 100% view.
 - Double-click an image or choose **Crop image** in its properties. Drag inside the frame to reposition the image, use the zoom buttons to scale the image inside it, or drag the handles to change the crop window. **Mask shape** supports rectangle, rounded rectangle, and ellipse. Crop and mask settings are saved in the slide JSON.
 - Add shapes with the square button beside **Media**. Shapes and connectors have editable positions, fill and stroke controls. Imported table text is editable as individual cell layers.
-- **Present** starts from the current slide. Videos autoplay muted in Present, with the hover controls reserved for editing.
+- **Present** starts from the current slide and attempts video playback with sound. If the browser requires a click, use the video's play button. YouTube's own controls include captions when the video provides them. The editor's hover controls are reserved for editing.
 - Use arrow keys, Space or Page Up and Page Down to navigate a presentation. Escape returns to the editor. Chrome preloads adjacent slides, using lighter display copies for large images. The presentation controls appear when hovered or focused and omit slide numbers.
 
 ## JSON and media

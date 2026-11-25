@@ -30,6 +30,7 @@ export function FileVideo({ src, poster, style, mode, active, hovered, onError }
   const [intent, setIntent] = usePlaybackIntent(active, hovered)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [blocked, setBlocked] = useState(false)
   const [duration, setDuration] = useState(0)
   const [time, setTime] = useState(0)
   const editing = mode === 'edit'
@@ -38,9 +39,12 @@ export function FileVideo({ src, poster, style, mode, active, hovered, onError }
   useEffect(() => {
     const element = video.current
     if (!element) return
-    if (shouldPlay) element.play().catch(() => {})
-    else element.pause()
-  }, [shouldPlay, src])
+    if (shouldPlay) {
+      element.play().catch(error => {
+        if (!editing && error.name === 'NotAllowedError') setBlocked(true)
+      })
+    } else element.pause()
+  }, [shouldPlay, editing, src])
 
   function seek(seconds) {
     video.current.currentTime = seconds
@@ -53,14 +57,16 @@ export function FileVideo({ src, poster, style, mode, active, hovered, onError }
   }
 
   return <div className="file-video">
-    <video ref={video} src={src} poster={poster || undefined} style={style} muted={muted} playsInline
+    <video ref={video} src={src} poster={poster || undefined} style={style} muted={editing && muted} playsInline
       preload={!editing && active ? 'auto' : 'metadata'} loop={!editing}
-      onPlay={editing ? () => setPlaying(true) : undefined}
+      onPlay={editing ? () => setPlaying(true) : () => setBlocked(false)}
       onPause={editing ? () => setPlaying(false) : undefined}
       onEnded={editing ? () => setPlaying(false) : undefined}
       onDurationChange={editing ? event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0) : undefined}
       onTimeUpdate={editing ? event => setTime(event.currentTarget.currentTime) : undefined}
       onError={onError} />
+    {!editing && active && blocked && <button type="button" className="file-video-play"
+      onClick={() => video.current.play().catch(() => {})}><Play fill="currentColor" /> Play with sound</button>}
     {editing && <VideoControls playing={playing} muted={muted} duration={duration} time={time}
       play={() => { setIntent(true); video.current.play().catch(() => {}) }}
       pause={pause} reset={() => { pause(); seek(0) }} seek={seek}
@@ -112,6 +118,8 @@ export function YouTubeMedia({ video, mode, active, hovered, autoplay }) {
       setTime(instance?.getCurrentTime?.() || 0)
       const length = instance?.getDuration?.()
       setDuration(Number.isFinite(length) ? length : 0)
+      const muted = instance?.isMuted?.()
+      if (typeof muted === 'boolean') setMuted(muted)
     }
     loadYouTubeAPI().then(YT => {
       if (dispose) return
@@ -119,7 +127,7 @@ export function YouTubeMedia({ video, mode, active, hovered, autoplay }) {
       const src = new URL(video.embed)
       src.searchParams.set('enablejsapi', '1')
       src.searchParams.set('origin', window.location.origin)
-      if (!editing) src.searchParams.set('controls', '0')
+      src.searchParams.set('controls', '1')
       iframe.title = 'YouTube video player'
       iframe.src = src.href
       iframe.referrerPolicy = 'strict-origin-when-cross-origin'
@@ -130,7 +138,8 @@ export function YouTubeMedia({ video, mode, active, hovered, autoplay }) {
         onReady: event => {
           if (dispose) return
           player.current = event.target
-          event.target.mute()
+          if (editing) event.target.mute()
+          else event.target.unMute()
           setReady(true)
           if (editing) sample()
         },
@@ -204,9 +213,10 @@ export function YouTubeMedia({ video, mode, active, hovered, autoplay }) {
       play={play} pause={pause} reset={() => { pause(); seek(video.start) }} seek={seek}
       toggleMute={() => {
         if (!player.current) return
-        if (muted) player.current.unMute()
+        const wasMuted = player.current.isMuted()
+        if (wasMuted) player.current.unMute()
         else player.current.mute()
-        setMuted(!muted)
+        setMuted(!wasMuted)
       }}>{watchLink}</VideoControls>}
   </div>
 }
