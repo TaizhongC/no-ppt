@@ -1,0 +1,15 @@
+/node_modules/
+/dist/
+/.npm-cache/
+
+# Local presentations, media, and saved versions
+/data/
+/versions/
+/public/decks/
+/public/full-deck/
+/public/media/
+/public/versions/
+/public/starter.json
+*-v[0-9]*.json
+*.pptx
+*.zip
