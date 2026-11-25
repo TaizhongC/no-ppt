@@ -39,6 +39,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .topbar-left, .topbar-actions, .brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
 .topbar-left { gap: 18px; }
 .brand { gap: 8px; flex: none; font-size: 22px; font-weight: 700; letter-spacing: -.055em; }
+button.brand { padding: 0; border: 0; border-radius: 9px; background: transparent; }
+button.brand:not(:disabled):hover .brand-mark { background: color-mix(in srgb, var(--theme-accent) 82%, var(--on-accent)); }
 .brand-mark { width: 33px; height: 33px; display: grid; place-items: center; border-radius: 9px; background: var(--theme-accent); color: var(--on-accent); }
 .brand-slash { color: var(--accent-text); margin: 0 1px; }
 .divider { width: 1px; height: 20px; background: var(--line); display: inline-block; flex: none; }
@@ -68,6 +70,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .present-button { background: var(--theme-accent); border-color: var(--theme-accent); color: var(--on-accent); padding: 0 15px; height: 36px; }
 .present-button:not(:disabled):hover { background: color-mix(in srgb, var(--theme-accent) 84%, var(--on-accent)); border-color: var(--theme-accent); }
 .present-button svg { width: 13px; height: 13px; }
+
+.presentation-home { overflow: auto; width: min(100%, 860px); margin-inline: auto; padding: clamp(24px, 6vw, 70px) clamp(16px, 4vw, 32px); }
+.presentation-home-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.presentation-home-header h1 { margin: 0; font-size: clamp(1.55rem, 4vw, 2rem); line-height: 1.1; letter-spacing: -.025em; }
+.presentation-home-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.presentation-home-actions .button { height: 36px; }
+.presentation-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.presentation-list li + li { border-top: 1px solid var(--line); }
+.presentation-list li:first-child .presentation-row { border-radius: 9px 9px 0 0; }
+.presentation-list li:last-child .presentation-row { border-radius: 0 0 9px 9px; }
+.presentation-list li:only-child .presentation-row { border-radius: 9px; }
+.presentation-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; min-height: 64px; padding: 10px 14px; border: 0; background: transparent; text-align: left;
+}
+.presentation-row:not(:disabled):hover { background: var(--accent); }
+.presentation-row:focus-visible { outline-offset: -2px; }
+.presentation-row-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 7px; color: var(--accent-text); background: var(--accent); }
+.presentation-row-text { display: grid; gap: 3px; overflow-wrap: anywhere; }
+.presentation-row-text strong { font-size: .95rem; font-weight: 650; }
+.presentation-row-text > span { font-size: .79rem; color: var(--muted); }
+.presentation-row-arrow { color: var(--muted); }
 .menu { position: relative; }
 .menu-popover {
   z-index: 5; position: absolute; top: calc(100% + 8px); left: 0; width: max-content; min-width: 180px;

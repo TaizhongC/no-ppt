@@ -87,7 +87,7 @@ async function loadSession() {
       return { project, hasArchive, notice: 'The deck update could not load. Your saved draft is open.' }
     }
   }
-  return { project: project ?? await loadBundledDeck(), hasArchive }
+  return { project: project ?? await loadBundledDeck().catch(() => newProject()), hasArchive }
 }
 
 async function loadWorkspace() {
@@ -188,6 +188,39 @@ function SlideJump({ current, total, chooseSlide }) {
   </label>
 }
 
+function Brand({ onHome, busy }) {
+  const content = <>
+    <span className="brand-mark"><Layers size={19} /></span>
+    <span>no<span className="brand-slash">/</span>ppt</span>
+  </>
+  return onHome
+    ? <button className="brand" type="button" aria-label="Home" title="Home" disabled={busy} onClick={onHome}>{content}</button>
+    : <div className="brand">{content}</div>
+}
+
+function PresentationHome({ decks, openDeck, createDeck, choosePackage, busy }) {
+  return <main className="presentation-home" aria-labelledby="presentations-heading">
+    <div className="presentation-home-header">
+      <h1 id="presentations-heading">Presentations</h1>
+      <div className="presentation-home-actions">
+        <button className="button" type="button" disabled={busy} onClick={choosePackage}><FolderOpen /> Unpack ZIP</button>
+        <button className="button present-button" type="button" disabled={busy} onClick={createDeck}><FilePlus2 /> New presentation</button>
+      </div>
+    </div>
+    <ul className="presentation-list">
+      {decks.slice().reverse().map(deck => <li key={deck.id ?? 'draft'}>
+        <button className="presentation-row" type="button" disabled={busy} onClick={() => openDeck(deck.id)}>
+          <span className="presentation-row-icon"><Layers size={18} /></span>
+          <span className="presentation-row-text">
+            <strong>{deck.name}</strong><span>{deck.slideCount} {deck.slideCount === 1 ? 'slide' : 'slides'}</span>
+          </span>
+          <ChevronRight size={17} className="presentation-row-arrow" />
+        </button>
+      </li>)}
+    </ul>
+  </main>
+}
+
 function useFit(ref, aspect, ready = true, margin = 0) {
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
   useEffect(() => {
@@ -251,6 +284,7 @@ function Presenter({ project, index, setIndex, close, container }) {
 
 function App() {
   const { project, load: setProject, edit: editProject, undo, redo, canUndo, canRedo } = useProjectHistory()
+  const [home, setHome] = useState(true)
   const [library, setLibrary] = useState(null)
   const [deckId, setDeckId] = useState(null)
   const [switching, setSwitching] = useState(false)
@@ -287,11 +321,11 @@ function App() {
   const dropDepth = useRef(0)
   const current = project ? Math.max(0, project.slides.findIndex(item => item.id === slideId)) : 0
   const slide = project?.slides[current]
-  const editingSlide = Boolean(slide && !grid && !switching && presentIndex === null)
+  const editingSlide = Boolean(slide && !home && !grid && !switching && presentIndex === null)
   const selection = slide?.layers.filter(layer => selected.has(layer.id)) ?? []
   const activeLayer = selection.length === 1 ? selection[0] : null
   const cropping = Boolean(cropId && activeLayer?.id === cropId && activeLayer.type === 'image' && activeLayer.src)
-  const { fit, viewport } = useFit(stage, project?.aspect ?? 16 / 9, Boolean(project) && !grid, canvasMargin)
+  const { fit, viewport } = useFit(stage, project?.aspect ?? 16 / 9, Boolean(project) && !home && !grid, canvasMargin)
   const canvasWidth = fit * zoom / 100
 
   useLayoutEffect(() => {
@@ -339,6 +373,7 @@ function App() {
 
   useEffect(() => {
     function historyKey(event) {
+      if (home) return
       if (cropping && event.key === 'Escape') {
         setCropId(null)
         return
@@ -351,7 +386,7 @@ function App() {
     }
     window.addEventListener('keydown', historyKey)
     return () => window.removeEventListener('keydown', historyKey)
-  }, [presentIndex, switching, cropping, canUndo, canRedo, undo, redo])
+  }, [home, presentIndex, switching, cropping, canUndo, canRedo, undo, redo])
 
   useEffect(() => {
     function layerShortcut(event) {
@@ -640,6 +675,10 @@ function App() {
       setTransferStatus('')
     }
   }
+  function choosePackage() {
+    setMenu(null)
+    packageInput.current.click()
+  }
   function importPackage(file) {
     if (!file) return
     switchDeck(crypto.randomUUID(), async () => {
@@ -667,17 +706,30 @@ function App() {
     setCollapsed(new Set())
     select(null)
   }
+  function showHome() {
+    setMenu(null)
+    setGrid(false)
+    select(null)
+    setHome(true)
+  }
   async function switchDeck(id, create) {
     setMenu(null)
-    if (busy || id === deckId) return
-    if (!deckId || !library) {
-      setNotice('Browser storage is unavailable. Export the current presentation to keep a copy.')
+    if (busy) return
+    if (id === deckId) {
+      setHome(false)
       return
     }
     setBusy(true)
     setSwitching(true)
     try {
-      await saveDeck(deckId, project, slide?.id)
+      const needsLibrary = !deckId || !library
+      const currentId = needsLibrary ? crypto.randomUUID() : deckId
+      if (needsLibrary) await initializeDeckLibrary(currentId, project)
+      const currentLibrary = await saveDeck(currentId, project, slide?.id)
+      if (needsLibrary) {
+        setLibrary(currentLibrary)
+        setDeckId(currentId)
+      }
       let next = await readDeck(id)
       if (!next && create) {
         const created = await create()
@@ -691,13 +743,14 @@ function App() {
         }
       }
       if (!next) throw new Error('The presentation could not be found.')
-      const nextVersions = await listVersions(id, library.legacyVersionsDeckId)
+      const nextVersions = await listVersions(id, currentLibrary.legacyVersionsDeckId)
       const nextLibrary = await activateDeck(id)
       setLibrary(nextLibrary)
       setDeckId(id)
       setVersions(nextVersions ?? [])
       setGrid(false)
       openProject(next, nextLibrary.decks.find(deck => deck.id === id)?.lastSlideId)
+      setHome(false)
     } catch (error) {
       setNotice('Could not open the presentation. ' + (error?.message ?? 'Browser storage could not complete the import.'))
     } finally {
@@ -778,22 +831,25 @@ function App() {
 
   if (!project) return <div className="loading">Opening presentation…</div>
   const aspectLabel = [[16 / 9, '16:9'], [4 / 3, '4:3'], [1, '1:1'], [9 / 16, '9:16']].find(([value]) => value === project.aspect)?.[1] || project.aspect.toFixed(2) + ':1'
+  const decks = (library?.decks ?? [{ id: deckId }]).map(deck => deck.id === deckId
+    ? { ...deck, name: project.name.trim() || 'Untitled presentation', slideCount: project.slides.length }
+    : deck)
 
   return <>
-    <div className="editor" inert={presentIndex !== null || switching} aria-busy={switching} onPointerDown={clearSelectionOnBackground}>
-      <header className="topbar">
+    <div className="editor" inert={presentIndex !== null || switching} aria-busy={switching}
+      onPointerDown={clearSelectionOnBackground}>
+      {home ? <header className="topbar"><Brand /></header> : <header className="topbar">
         <div className="topbar-left">
-          <div className="brand"><span className="brand-mark"><Layers size={19} /></span><span>no<span className="brand-slash">/</span>ppt</span></div>
+          <Brand onHome={showHome} busy={busy} />
           <span className="divider" />
           <Menu name="decks" label="Switch presentation" open={menu === 'decks'} toggle={setMenu}
             className="deck-menu" buttonClass="project-name"
             trigger={<><span>{project.name || 'Untitled presentation'}</span><ChevronDown size={14} /></>}>
             <div className="deck-list">
-              {library?.decks.map(deck => <button key={deck.id} disabled={busy} aria-current={deck.id === deckId ? 'true' : undefined}
+              {decks.map(deck => <button key={deck.id ?? 'draft'} disabled={busy} aria-current={deck.id === deckId ? 'true' : undefined}
                 onClick={() => switchDeck(deck.id)}>
                 {deck.id === deckId ? <Check /> : <Layers />}
-                <span><strong>{deck.id === deckId ? project.name || deck.name : deck.name}</strong>
-                  <small>{deck.id === deckId ? project.slides.length : deck.slideCount} slides</small></span>
+                <span><strong>{deck.name}</strong><small>{deck.slideCount} {deck.slideCount === 1 ? 'slide' : 'slides'}</small></span>
               </button>)}
             </div>
             <button onClick={() => { setMenu(null); setGrid(false); setTab('deck') }}><Type /> Deck settings</button>
@@ -821,7 +877,7 @@ function App() {
               setMenu(null)
               importInput.current.click()
             }}><FolderOpen /> Open JSON</button>
-            <button disabled={busy} onClick={() => { setMenu(null); packageInput.current.click() }}><FolderOpen /> Unpack ZIP</button>
+            <button disabled={busy} onClick={choosePackage}><FolderOpen /> Unpack ZIP</button>
             <button disabled={busy} onClick={openBundledDeck}><Layers /> Open AI Tectonism (135 slides)</button>
             {hasArchive && <button disabled={busy} onClick={openArchivedStarter}><FolderOpen /> Open archived starter draft</button>}
             <button disabled={busy} onClick={exportProject}><Download /> Export JSON</button>
@@ -829,8 +885,9 @@ function App() {
           </Menu>
           <button ref={presentButton} className="button present-button" onClick={startPresentation}><Play size={15} fill="currentColor" /> Present</button>
         </div>
-      </header>
-      {grid ? <main className="sorter" aria-label="Slide grid">
+      </header>}
+      {home ? <PresentationHome decks={decks} openDeck={switchDeck} createDeck={createDeck} choosePackage={choosePackage} busy={busy} />
+        : grid ? <main className="sorter" aria-label="Slide grid">
         <div className="sorter-toolbar">
           <h2>Slide grid <small>{project.slides.length} slides</small></h2>
           <div className="canvas-actions">
@@ -914,7 +971,7 @@ function App() {
           toggleCrop={() => cropping ? closeCrop() : beginCrop(activeLayer.id)} />
       </div>}
       <footer className="app-footer"><span role="status"><span className={'save-icon ' + (saved === 'Local save failed' ? 'save-error' : '')}><Check /></span>{transferStatus || (busy ? 'Working…' : saved)}</span>
-        <span>JSON presentation</span></footer>
+        {!home && <span>JSON presentation</span>}</footer>
     </div>
     <input type="file" accept="image/*,video/*,.mov,.m4v" multiple hidden ref={mediaInput} onChange={event => {
       const files = [...event.target.files]

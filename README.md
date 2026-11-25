@@ -1,6 +1,6 @@
 ﻿# No PPT
 
-No PPT is a local React presentation editor. It opens the last presentation you used, or the complete 135-slide **AI Tectonism** deck on first run. If the browser saved the earlier eight-slide starter, the app archives it and opens the full deck on the next load. You can recover it with **File → Open archived starter draft**.
+No PPT is a local React presentation editor. It opens the last presentation you used. On first run it opens the bundled 135-slide **AI Tectonism** deck when available, or starts a new presentation in a source-only checkout. If the browser saved the earlier eight-slide starter, the bundled deck can archive it when it upgrades. You can recover the draft with **File → Open archived starter draft**.
 
 ## Run locally
 
@@ -24,6 +24,7 @@ The app accent is defined in **public/no-ppt.config**. Set `accent = #000000` fo
 
 ## Edit and present
 
+- Home lists presentations newest first. Open a presentation from the list, or choose **New presentation** or **Unpack ZIP**. Click the No PPT logo in the editor to return Home.
 - Choose a slide from the rail or enter its number below the canvas. Drag thumbnails to reorder them or use the actions below the slide list.
 - Select a slide and choose **Add → Add section here** in the Slides rail to start a section at that slide. The **Slide grid** also has **Add section here** and **Rename section**. Drag slides within or between sections and click section headings to collapse them. Double-click a slide in the grid to return to the editor.
 - Use **Add** for full-bleed, framed media, text + media, two-up media, or blank layouts. Drop files onto the canvas or fill media frames with uploads and direct links.
