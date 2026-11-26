@@ -275,6 +275,15 @@ button.brand:not(:disabled):hover .brand-mark { background: color-mix(in srgb, v
 .media-placeholder span { font-size: clamp(10px, 1.6cqw, 15px); }
 .edit-slide .slide-layer { user-select: none; cursor: move; touch-action: none; }
 .edit-slide .slide-layer > * { pointer-events: none; }
+.edit-slide .slide-layer > .youtube-frame-handle {
+  position: absolute; z-index: 3; top: 2px; left: 50%; translate: -50% 0;
+  display: flex; align-items: center; gap: 4px; padding: 3px 7px;
+  border: 1px solid #ffffff70; border-radius: 4px; background: #151515ed; color: #fff;
+  font: 11px/1.2 Arial, sans-serif; pointer-events: auto; cursor: move; touch-action: none;
+  opacity: 0;
+}
+.youtube-frame-handle svg { width: 13px; height: 13px; }
+.slide-layer:is(:hover, :focus-within, .selected-layer) > .youtube-frame-handle { opacity: 1; }
 .edit-slide .slide-layer:hover { outline: 1px dashed var(--accent-text); outline-offset: -1px; }
 .frame-overlay {
   position: absolute; z-index: 40; pointer-events: none;

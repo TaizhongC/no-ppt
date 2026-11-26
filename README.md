@@ -1,6 +1,6 @@
-﻿# No PPT
+# No PPT
 
-No PPT is a local React presentation editor. It opens the last presentation you used. On first run it opens the bundled 135-slide **AI Tectonism** deck when available, or starts a new presentation in a source-only checkout. If the browser saved the earlier eight-slide starter, the bundled deck can archive it when it upgrades. You can recover the draft with **File → Open archived starter draft**.
+No PPT is a local React presentation editor. Unpacked presentations live in the repository’s `presentations/` folder. The app reloads these files when it opens and saves edits back to disk. On first run it opens the bundled 135-slide **AI Tectonism** deck when available, or starts a new presentation in a source-only checkout. If the browser saved the earlier eight-slide starter, the bundled deck can archive it when it upgrades. You can recover the draft with **File → Open archived starter draft**.
 
 ## Run locally
 
@@ -34,6 +34,7 @@ The app accent is defined in **public/no-ppt.config**. Set `accent = #000000` fo
 - Use **Ctrl+C** (or **⌘C**) to copy the selected layers. Switch slides and use **Ctrl+V** (or **⌘V**) to paste. The Layers header also has copy and paste buttons.
 - Drag a layer or its resize handles to align with other layers and the slide. Hold Shift while moving a layer to lock it to the dominant drag axis. Hold Alt while dragging to bypass snapping. Use the toolbar or Ctrl+Z and Ctrl+Shift+Z to undo and redo.
 - Select a layer to see its frame and resize handles. Drag an edge or corner to resize freely, or hold Shift to preserve the frame's aspect ratio. Text has a **Wrap text to frame** control.
+- YouTube playback controls stay active in the editor. Hover over the video and click the **Frame** handle at the top to select it and show resize handles; drag **Frame** to move it. You can also select it in Layers and set **W/H** in its properties.
 - Hold Shift or Ctrl and click layers on the canvas or in the Layers panel to add or remove them from the selection. Drag any selected layer to move the selection together, use the arrow keys on the canvas to nudge it, or press Delete to remove it.
 - Edit font family, size, color, bold, italic and alignment for selected text boxes together. The selection's X and Y fields move the whole selection while preserving spacing.
 - The Layers panel groups Text, Shapes and Media. New layers follow that front-to-back order. Use **Bring forward** and **Send backward** to adjust the stacking of selected layers.
@@ -46,13 +47,24 @@ The app accent is defined in **public/no-ppt.config**. Set `accent = #000000` fo
 
 ## JSON and media
 
-Use **File → New presentation** to create a deck, or **File → Open JSON** to add a deck to the library. Click the presentation name in the top bar to switch decks. The slide rail and grid switch slides within the open deck. The app saves each deck separately in IndexedDB for the current browser and app address, and remembers the last slide when you switch.
+Use **File → New presentation** to create a deck, or **File → Open JSON** to add a deck to the library. Click the presentation name in the top bar to switch decks. The slide rail and grid switch slides within the open deck. For new presentations, imported JSON and unpacked packages, the app saves the deck, media, versions and last slide in `presentations/<presentation-name>/`. It rebuilds the browser library from those files on startup, so clearing browser data does not remove these decks. When local presentation folders exist, Home lists those folders only. Previous browser-only records, their versions, and media are retained as a recovery backup instead of being merged into Home. Clearing the browser cache is not required.
 
 **File → Export JSON** downloads the open deck with browser uploads embedded and bundled and remote assets linked. For deck files and media you maintain manually, use one folder per deck.
 
-To move an edited deck between machines, use **File → Package ZIP** and transfer that file. In No PPT on the other machine, choose **File → Unpack ZIP**. The ZIP contains the open deck, its saved versions, and their local images, videos, and thumbnails. YouTube and other remote media stay linked. Install any fonts used by the deck on the destination machine.
+Run **npm run dev** or **npm run preview** to enable local file storage. Restart the server after updating the app. A plain static server (including the Python command above) can view older browser decks, but cannot create presentation folders, unpack packages into the repository or save edits there. Unpack reports an error when the local storage server is unavailable.
+
+To move an edited deck between machines, use **File → Package ZIP** and transfer that file. In No PPT on the other machine, choose **File → Unpack ZIP**. Unpack ZIP extracts the archive into a new `presentations/<presentation-name>/` folder; a repeated import creates a separate folder without overwriting the first. The ZIP contains the open deck, its saved versions, and their local images, videos, and thumbnails. YouTube and other remote media stay linked. Install any fonts used by the deck on the destination machine.
 
 ~~~text
+presentations/          # local deck folders; AI Tectonism JSON is tracked
+  ai-tectonism/
+    deck.json
+    media/
+    versions/
+      v1.json
+    no-ppt-package.json
+    workspace.json      # saved versions and last slide
+  workspace.json        # last open presentation
 public/
   decks/
     project-review/
@@ -65,7 +77,9 @@ public/
   media/              # assets you want to share across decks
 ~~~
 
-Store the full ordered slide list in each `deck.json`. The app resolves relative media links from the app URL. For example, use `./decks/project-review/media/cover.jpg` from either deck. The browser library keeps its own editable copy of each JSON you open. Use **Export JSON** to update the file on disk.
+AI Tectonism's deck JSON, package manifest, translation glossary and versions are tracked in Git. **v3** preserves the English presentation; **v4** contains the Chinese translation. Media and browser/workspace state stay local. To use this deck on another machine, transfer its `media/` folder as well, or use **Package ZIP** to transfer the complete presentation.
+
+Store the full ordered slide list in each `deck.json`. The app resolves relative media links from the app URL. For example, use `./decks/project-review/media/cover.jpg` from either deck. Unpacked decks load local media through the app server, which supports seeking in video files. You can edit their `deck.json` directly while the app is closed, then reload the app to see the changes. **New presentation** and **Open JSON** also create their own presentation folders. External and existing linked media stay linked; uploaded and embedded media are written into the deck’s `media/` folder.
 
 **Versions → Save version** writes a numbered JSON file with the snapshot and commit message. The browser also records it in the Versions menu. Use **File → Open JSON** to reopen a version file from disk with its linked media available. Use **Package ZIP** to transfer the versions and their media to another browser. The AI Tectonism deck includes the shipped v1 checkpoint at **public/versions/no-ppt-v1.json**.
 

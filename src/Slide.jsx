@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ImagePlus } from 'lucide-react'
+import { ImagePlus, Move } from 'lucide-react'
 import { useMedia } from './storage'
 import { layerTextFont, safeSrc, textAppearance } from './project'
 import { snapPosition } from './alignment'
@@ -182,6 +182,10 @@ function SlideLayer({ layer, mode, enabled, selected, select, onMove, editText, 
       : isShape ? <Shape layer={layer} strokeWidth={length(layer.strokeWidth)} />
         : <Media layer={layer} mode={mode} enabled={enabled} previews={previews} active={active} hovered={hovered}
           youtube={youtube} autoplay={autoplay} />}
+    {editing && youtube && <button type="button" className="youtube-frame-handle"
+      aria-label="Select or move video frame" title="Drag to move; select to show resize handles">
+      <Move /> Frame
+    </button>}
   </div>
 }
 

@@ -12,10 +12,11 @@ import { duplicateSlide, insertLayers, isBundledDeck, isLegacyStarter, isMedia, 
   needsDeckUpgrade, newLayer, newProject, parseProject, pasteLayerSnapshot, reorder, safeSrc, slideName, slotForLayer,
   restackLayers, snapshotLayer, stripComparisonAssets, upgradeDeck } from './project'
 import { activateDeck, addAsset, archivedDeckId, bundledDeckId, initializeDeckLibrary, listVersions, projectForExport,
-  readDeck, readDeckLibrary, readProject, readStarterArchive, readVersion, saveDeck,
-  saveVersion, storeEmbeddedMedia, upgradeStarter } from './storage'
+  readDeck, readDeckLibrary, readProject, readStarterArchive, readVersion, restoreLocalPresentations, saveDeck,
+  saveVersion, upgradeStarter } from './storage'
 import { youtubeVideo } from './youtube'
 import { applyAppTheme } from './theme'
+import { createLocalPresentation, isDiskPresentation, unpackLocalPresentation } from './localPresentations'
 import './style.css'
 
 const isFileDrag = event => event.dataTransfer.types.includes('Files')
@@ -91,6 +92,7 @@ async function loadSession() {
 }
 
 async function loadWorkspace() {
+  await restoreLocalPresentations()
   const library = await readDeckLibrary().catch(() => null)
   if (library) {
     const project = await readDeck(library.activeId)
@@ -429,7 +431,7 @@ function App() {
         .catch(() => { if (live) setSaved('Local save failed') })
     }, 180)
     return () => { live = false; clearTimeout(timeout) }
-  }, [deckId, project, switching])
+  }, [deckId, project, switching, slide?.id])
 
   useEffect(() => {
     if (!notice) return
@@ -662,7 +664,7 @@ function App() {
         if (!snapshot) throw new Error('Could not read v' + version.number + '.')
         snapshots.push({ ...version, project: snapshot })
       }
-      if (deckId === bundledDeckId) snapshots.push({ ...bundledCheckpoint, project: await loadBundledDeck(true) })
+      if (deckId === bundledDeckId && !isDiskPresentation(deckId)) snapshots.push({ ...bundledCheckpoint, project: await loadBundledDeck(true) })
       const blob = await packageDeck({ project, versions: snapshots, activeSlide: current, previews,
         output, progress: setTransferStatus })
       if (!output) downloadFile(blob, name)
@@ -679,26 +681,45 @@ function App() {
     setMenu(null)
     packageInput.current.click()
   }
+  async function openDiskPresentation(create, status) {
+    if (busy) return
+    setBusy(true)
+    setTransferStatus(status)
+    try {
+      if (deckId && library) await saveDeck(deckId, project, slide?.id)
+      const created = await create()
+      await restoreLocalPresentations()
+      const nextLibrary = await readDeckLibrary()
+      setLibrary(nextLibrary)
+      setDeckId(created.id)
+      setVersions(created.versions)
+      setGrid(false)
+      openProject(created.project, created.lastSlideId)
+      setHome(false)
+      setNotice('Saved to presentations/' + created.id + '/. Edits will save to this folder.')
+    } catch (error) {
+      setNotice('Could not save the presentation folder. ' + error.message)
+    } finally {
+      setBusy(false)
+      setTransferStatus('')
+    }
+  }
   function importPackage(file) {
     if (!file) return
-    switchDeck(crypto.randomUUID(), async () => {
-      setTransferStatus('Opening package…')
-      const { unpackDeck } = await import('./deckPackage')
-      return unpackDeck(file, setTransferStatus)
-    })
+    return openDiskPresentation(() => unpackLocalPresentation(file), 'Extracting package to presentations/…')
   }
   function importProject(file) {
     if (!file) return
-    switchDeck(crypto.randomUUID(), async () => {
+    return openDiskPresentation(async () => {
       const data = JSON.parse(await file.text())
-      const clean = await storeEmbeddedMedia(parseProject(data))
+      const clean = parseProject(data)
       const project = { ...clean, editorRevision: 2 }
       const saved = data.savedVersion
       const versions = Number.isSafeInteger(saved?.number) && saved.number > 0 && typeof saved.message === 'string'
         ? [{ number: saved.number, message: saved.message, date: typeof saved.date === 'string' ? saved.date : null, project }]
         : undefined
-      return { project, versions }
-    })
+      return createLocalPresentation(project, versions)
+    }, 'Saving presentation to presentations/…')
   }
   function openProject(next, lastSlideId = null) {
     setProject(stripComparisonAssets(next))
@@ -765,7 +786,7 @@ function App() {
     const next = newProject()
     let suffix = 2
     while (names.has(next.name)) next.name = 'Untitled presentation ' + suffix++
-    switchDeck(crypto.randomUUID(), () => ({ project: next }))
+    openDiskPresentation(() => createLocalPresentation(next), 'Creating presentation folder…')
   }
   async function commitVersion() {
     setMenu(null)
@@ -798,7 +819,7 @@ function App() {
     if (!window.confirm('Open v' + number + '? Save a version first to keep your current edits.')) return
     setBusy(true)
     try {
-      const next = number === 1 && deckId === bundledDeckId ? await loadBundledDeck(true)
+      const next = number === 1 && deckId === bundledDeckId && !isDiskPresentation(deckId) ? await loadBundledDeck(true)
         : await readVersion(deckId, library.legacyVersionsDeckId, number)
       if (!next) throw new Error('This version could not be found.')
       openProject(next)
@@ -865,7 +886,7 @@ function App() {
             trigger={<><History /><span className="versions-label">Versions</span><ChevronDown className="chevron" /></>} align="right">
             <button disabled={busy || !deckId} onClick={commitVersion}><Save /> Save version</button>
             <div className="version-list">
-              {[...versions, ...(deckId === bundledDeckId ? [bundledCheckpoint] : [])].map(({ number, message }) =>
+              {[...versions, ...(deckId === bundledDeckId && !isDiskPresentation(deckId) ? [bundledCheckpoint] : [])].map(({ number, message }) =>
                 <button key={number} disabled={busy} onClick={() => openVersion(number)} title={message}>
                   <span className="version-number">v{number}</span><span className="version-message">{message}</span>
                 </button>)}

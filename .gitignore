@@ -4,6 +4,15 @@
 
 # Local presentations, media, and saved versions
 /data/
+/presentations/*
+!/presentations/ai-tectonism/
+/presentations/ai-tectonism/*
+!/presentations/ai-tectonism/deck.json
+!/presentations/ai-tectonism/no-ppt-package.json
+!/presentations/ai-tectonism/translations.zh-CN.json
+!/presentations/ai-tectonism/versions/
+/presentations/ai-tectonism/versions/*
+!/presentations/ai-tectonism/versions/v*.json
 /versions/
 /public/decks/
 /public/full-deck/

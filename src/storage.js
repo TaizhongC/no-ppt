@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from 'react'
 
 import { isLegacyStarter, mediaReferences } from './project'
+import { activateLocalPresentation, isDiskPresentation, listLocalPresentations, saveLocalPresentation } from './localPresentations'
+import { localLibraryIndex } from './presentationLibrary'
 
 let database
 function openDatabase() {
@@ -79,7 +81,14 @@ export function initializeDeckLibrary(id, project) {
   })
 }
 
-export function saveDeck(id, project, lastSlideId, versions) {
+export async function saveDeck(id, project, lastSlideId, versions) {
+  if (isDiskPresentation(id)) {
+    const snapshots = versions && await Promise.all(versions.map(async version => ({
+      ...version, project: await projectForExport(version.project),
+    })))
+    await saveLocalPresentation(id, { project: { ...await projectForExport(project), previews: project.previews },
+      lastSlideId, versions: snapshots })
+  }
   return updateLibrary((store, library) => {
     if (!library) throw new Error('The presentation library is unavailable.')
     const entry = deckEntry(id, project, lastSlideId)
@@ -100,7 +109,8 @@ export function saveDeck(id, project, lastSlideId, versions) {
   })
 }
 
-export function activateDeck(id) {
+export async function activateDeck(id) {
+  if (isDiskPresentation(id)) await activateLocalPresentation(id)
   return updateLibrary((store, library) => {
     if (!library?.decks.some(deck => deck.id === id)) throw new Error('The presentation could not be found.')
     const next = { ...library, activeId: id }
@@ -109,11 +119,43 @@ export function activateDeck(id) {
   })
 }
 
+// Disk files are authoritative. Rebuild the browser index on every launch so
+// clearing site data or editing deck.json outside the editor is recoverable.
+export async function restoreLocalPresentations() {
+  const local = await listLocalPresentations()
+  if (!local?.decks.length) return
+  return updateLibrary((store, existing) => {
+    const { library, archiveBrowserLibrary } = localLibraryIndex(existing, local)
+    // Preserve the old index, projects, versions and media without merging
+    // browser-only entries back into the local folder library.
+    if (archiveBrowserLibrary) store.put(existing, 'before-local-deck-reconciliation')
+    for (const deck of local.decks) {
+      store.put(deck.project, deckKey(deck.id))
+      const index = deck.versions.map(({ project, ...version }) => {
+        store.put(project, versionKey(deck.id, library.legacyVersionsDeckId, version.number))
+        return version
+      })
+      store.put(index, versionKey(deck.id, library.legacyVersionsDeckId, 'index'))
+    }
+    store.put(library, libraryKey)
+    return library
+  })
+}
+
 const versionKey = (id, legacyId, number) => (id === legacyId ? '' : deckKey(id) + ':') + 'version-' + number
 export const listVersions = (id, legacyId) => read('projects', versionKey(id, legacyId, 'index'))
 export const readVersion = (id, legacyId, number) => read('projects', versionKey(id, legacyId, number))
 
 export async function saveVersion(id, legacyId, project, version) {
+  if (isDiskPresentation(id)) {
+    const previous = await listVersions(id, legacyId) ?? []
+    if (version.number !== (previous[0]?.number ?? (id === bundledDeckId ? 1 : 0)) + 1) {
+      throw new Error('A newer version was saved. Reopen the presentation before saving another version.')
+    }
+    const snapshots = await Promise.all(previous.map(async entry => ({ ...entry, project: await readVersion(id, legacyId, entry.number) })))
+    await saveDeck(id, project, project.slides[0]?.id, [{ ...version, project }, ...snapshots])
+    return listVersions(id, legacyId)
+  }
   const db = await openDatabase()
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('projects', 'readwrite')
