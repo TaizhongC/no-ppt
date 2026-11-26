@@ -1,6 +1,6 @@
 # No PPT
 
-No PPT is a local React presentation editor. Unpacked presentations live in the repository’s `presentations/` folder. The app reloads these files when it opens and saves edits back to disk. On first run it opens the bundled 135-slide **AI Tectonism** deck when available, or starts a new presentation in a source-only checkout. If the browser saved the earlier eight-slide starter, the bundled deck can archive it when it upgrades. You can recover the draft with **File → Open archived starter draft**.
+No PPT is a local React presentation editor. Unpacked presentations live in the repository’s `presentations/` folder. The app reloads these files when it opens and saves edits back to disk. On first run it opens a bundled deck when available, or starts a new presentation in a source-only checkout. If the browser saved the earlier eight-slide starter, the bundled deck can archive it when it upgrades. You can recover the draft with **File → Open archived starter draft**.
 
 ## Run locally
 
@@ -56,8 +56,8 @@ Run **npm run dev** or **npm run preview** to enable local file storage. Restart
 To move an edited deck between machines, use **File → Package ZIP** and transfer that file. In No PPT on the other machine, choose **File → Unpack ZIP**. Unpack ZIP extracts the archive into a new `presentations/<presentation-name>/` folder; a repeated import creates a separate folder without overwriting the first. The ZIP contains the open deck, its saved versions, and their local images, videos, and thumbnails. YouTube and other remote media stay linked. Install any fonts used by the deck on the destination machine.
 
 ~~~text
-presentations/          # local deck folders; AI Tectonism JSON is tracked
-  ai-tectonism/
+presentations/          # local presentation folders
+  project-review/
     deck.json
     media/
     versions/
@@ -77,11 +77,11 @@ public/
   media/              # assets you want to share across decks
 ~~~
 
-AI Tectonism's deck JSON, package manifest, translation glossary and versions are tracked in Git. **v3** preserves the English presentation; **v4** contains the Chinese translation. Media and browser/workspace state stay local. To use this deck on another machine, transfer its `media/` folder as well, or use **Package ZIP** to transfer the complete presentation.
+Each presentation folder contains its deck JSON, package manifest, media and saved versions. To move a complete presentation to another machine, use **Package ZIP** so its media and version history travel with it.
 
 Store the full ordered slide list in each `deck.json`. The app resolves relative media links from the app URL. For example, use `./decks/project-review/media/cover.jpg` from either deck. Unpacked decks load local media through the app server, which supports seeking in video files. You can edit their `deck.json` directly while the app is closed, then reload the app to see the changes. **New presentation** and **Open JSON** also create their own presentation folders. External and existing linked media stay linked; uploaded and embedded media are written into the deck’s `media/` folder.
 
-**Versions → Save version** writes a numbered JSON file with the snapshot and commit message. The browser also records it in the Versions menu. Use **File → Open JSON** to reopen a version file from disk with its linked media available. Use **Package ZIP** to transfer the versions and their media to another browser. The AI Tectonism deck includes the shipped v1 checkpoint at **public/versions/no-ppt-v1.json**.
+**Versions → Save version** writes a numbered JSON file with the snapshot and commit message. The browser also records it in the Versions menu. Use **File → Open JSON** to reopen a version file from disk with its linked media available. Use **Package ZIP** to transfer the versions and their media to another browser.
 
 The version 1 JSON stores slides in presentation order and each slide's layers from back to front. A slide can optionally carry a **thumbnail** link for the rail and grid. Layer **x**, **y**, **w**, and **h** are percentages of slide dimensions. Text sizes use a 1600-unit design width. Text can include styled paragraph runs and text-box insets. Media layers have a **src** link with optional poster and crop. Shape layers describe their geometry, fill, and stroke. Slides and layers support simple entrance effects.
 
